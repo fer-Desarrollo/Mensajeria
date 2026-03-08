@@ -141,4 +141,34 @@ class Auth_model extends CI_Model {
             'user' => $user
         ];
     }
+
+    public function recuperar_password($email)
+    {
+        $user = $this->db
+            ->where('email', $email)
+            ->get('usuario')
+            ->row();
+
+        if (!$user) {
+            return ['success' => false, 'error' => 'Email no encontrado'];
+        }
+
+        // generar nueva contraseña temporal
+        $password_temporal = substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$'), 0, 10);
+
+        $hash = password_hash($password_temporal, PASSWORD_BCRYPT);
+
+        $this->db->where('id', $user->id);
+        $this->db->update('usuario', [
+            'contrasena_hash' => $hash,
+            'password_temporal' => 1
+        ]);
+
+        return [
+            'success' => true,
+            'password_temporal' => $password_temporal,
+            'email' => $user->email,
+            'usuario' => $user->nombre_usuario
+        ];
+    }
 }

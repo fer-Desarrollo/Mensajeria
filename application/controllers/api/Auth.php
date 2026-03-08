@@ -145,4 +145,43 @@ class Auth extends CI_Controller {
                     : 'Login exitoso'
             ]));
     }
+
+
+    public function olvide_password()
+    {
+        $input = json_decode($this->input->raw_input_stream, true);
+
+        if (!$input || empty($input['email'])) {
+            return $this->error('Email requerido', 400);
+        }
+
+        $resultado = $this->Auth_model->recuperar_password($input['email']);
+
+        if (!$resultado['success']) {
+            return $this->error($resultado['error'], 404);
+        }
+
+        // enviar correo
+        $this->email->from('noreply@tuapp.com', 'Mensajeria App');
+        $this->email->to($resultado['email']);
+        $this->email->subject('Recuperación de contraseña');
+
+        $this->email->message("
+            <h3>Recuperación de acceso</h3>
+            <p><b>Usuario:</b> {$resultado['usuario']}</p>
+            <p><b>Nueva contraseña temporal:</b> {$resultado['password_temporal']}</p>
+            <p>Debes cambiarla al iniciar sesión.</p>
+        ");
+
+        if (!$this->email->send()) {
+            return $this->error('No se pudo enviar el correo', 500);
+        }
+
+        return $this->output
+            ->set_status_header(200)
+            ->set_output(json_encode([
+                'success' => true,
+                'message' => 'Se envió una nueva contraseña temporal al correo'
+            ]));
+    }
 } 

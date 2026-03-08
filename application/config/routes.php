@@ -49,9 +49,21 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
-$route['default_controller'] = 'welcome';
+$route['default_controller'] = 'auth/login';
 $route['api/auth/registro'] = 'api/auth/registro';
 $route['api/auth/cambiar-password'] = 'api/auth/cambiar_password';
 $route['api/auth/login'] = 'api/auth/login';
+$route['api/auth/olvide-password'] = 'api/auth/olvide_password';
+$route['api/conversaciones/listar/(:any)'] = 'api/conversaciones/listar/$1';
+$route['api/mensajes/enviar'] = 'api/mensajes/enviar';
+$route['api/mensajes/conversacion/(:any)'] = 'api/mensajes/conversacion/$1';
+$route['auth/login'] = 'auth/login';
+$route['auth/registro'] = 'auth/registro';
+$route['auth/cambiar-password'] = 'auth/cambiar_password';
+$route['auth/olvide-password'] = 'auth/olvide_password';
+
+// Ruta principal de mensajería
+$route['mensajeria'] = 'mensajeria/index';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
+
