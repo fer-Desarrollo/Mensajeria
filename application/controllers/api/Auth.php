@@ -7,6 +7,7 @@ class Auth extends CI_Controller {
     {
         parent::__construct();
         $this->load->model('Auth_model');
+        $this->load->model('Conversaciones_model');
         $this->load->library('session');
         $this->output->set_content_type('application/json');
     }
@@ -80,11 +81,14 @@ class Auth extends CI_Controller {
 
         $user = $resultado['user'];
 
+        $bot_id = '88888888-8888-8888-8888-888888888888';
+        $this->Conversaciones_model->crear_conversacion_bot_para_usuario($user->id, $bot_id);
+
         $this->session->set_userdata([
             'usuario_id' => $user->id,
             'nombre_usuario' => $user->nombre_usuario
         ]);
-
+        
         return $this->output
             ->set_status_header(200)
             ->set_output(json_encode([

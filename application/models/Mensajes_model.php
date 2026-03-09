@@ -85,6 +85,34 @@ class Mensajes_model extends CI_Model {
         return $this->db->query($sql, [$conversacion_id])->result();
     }
 
+    public function es_conversacion_con_bot($conversacion_id)
+    {
+        $sql = "
+            SELECT u.es_bot
+            FROM participantes p
+            JOIN usuario u ON u.id = p.usuario_id
+            WHERE p.conversacion_id = ?
+            AND u.es_bot = 1
+            LIMIT 1
+        ";
+
+        return $this->db->query($sql, [$conversacion_id])->row();
+    }
+
+    public function obtener_contexto_conversacion($conversacion_id, $limite = 10)
+    {
+        $sql = "
+            SELECT m.contenido_cifrado, u.nombre_usuario
+            FROM mensajes m
+            JOIN usuario u ON u.id = m.remitente_id
+            WHERE m.conversacion_id = ?
+            ORDER BY m.fecha_envio DESC
+            LIMIT ?
+        ";
+
+        return $this->db->query($sql, [$conversacion_id, $limite])->result();
+    }
+
     private function generar_uuid()
     {
         return sprintf(

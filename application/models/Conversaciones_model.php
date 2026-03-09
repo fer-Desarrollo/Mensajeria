@@ -76,6 +76,73 @@ class Conversaciones_model extends CI_Model {
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
     }
+    public function obtener_conversacion_con_bot($usuario_id, $bot_id)
+{
+    $sql = "
+        SELECT c.id AS conversacion_id
+        FROM conversaciones c
+        INNER JOIN participantes p1 ON p1.conversacion_id = c.id
+        INNER JOIN participantes p2 ON p2.conversacion_id = c.id
+        WHERE c.es_grupo = 0
+          AND p1.usuario_id = ?
+          AND p2.usuario_id = ?
+        LIMIT 1
+    ";
+
+    return $this->db->query($sql, [$usuario_id, $bot_id])->row();
+}
+
+    public function crear_conversacion_bot_para_usuario($usuario_id, $bot_id)
+    {
+        $existente = $this->obtener_conversacion_con_bot($usuario_id, $bot_id);
+
+        if ($existente) {
+            return [
+                'success' => true,
+                'conversacion_id' => $existente->conversacion_id,
+                'existente' => true
+            ];
+        }
+
+        $this->db->trans_begin();
+
+        $conversacion_id = $this->generar_uuid();
+
+        $this->db->insert('conversaciones', [
+            'id' => $conversacion_id,
+            'es_grupo' => 0,
+            'nombre_grupo' => null,
+            'creador_id' => $usuario_id
+        ]);
+
+        $this->db->insert('participantes', [
+            'conversacion_id' => $conversacion_id,
+            'usuario_id' => $usuario_id,
+            'es_admin' => 0
+        ]);
+
+        $this->db->insert('participantes', [
+            'conversacion_id' => $conversacion_id,
+            'usuario_id' => $bot_id,
+            'es_admin' => 0
+        ]);
+
+        if ($this->db->trans_status() === FALSE) {
+            $this->db->trans_rollback();
+            return [
+                'success' => false,
+                'error' => 'No se pudo crear la conversación con el bot'
+            ];
+        }
+
+        $this->db->trans_commit();
+
+        return [
+            'success' => true,
+            'conversacion_id' => $conversacion_id,
+            'existente' => false
+        ];
+    }
     public function listar_conversaciones($usuario_id)
     {
         $sql = "
@@ -88,7 +155,8 @@ class Conversaciones_model extends CI_Model {
                 m.fecha_envio,
                 u_otro.id AS participante_id,
                 u_otro.nombre_usuario AS nombre_participante,
-                per_otro.nombre_completo AS nombre_completo_participante
+                per_otro.nombre_completo AS nombre_completo_participante,
+                u_otro.es_bot
             FROM participantes p_actual
             JOIN conversaciones c 
                 ON c.id = p_actual.conversacion_id
