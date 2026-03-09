@@ -80,61 +80,46 @@ class Conversaciones_model extends CI_Model {
     {
         $sql = "
             SELECT 
-                c.id as conversacion_id,
+                c.id AS conversacion_id,
                 c.es_grupo,
                 c.nombre_grupo,
                 c.foto_grupo_url,
-                m.contenido_cifrado as ultimo_mensaje,
-                m.fecha_envio
-            FROM participantes p
-            JOIN conversaciones c ON c.id = p.conversacion_id
-            LEFT JOIN mensajes m ON m.id = (
-                SELECT id
-                FROM mensajes
-                WHERE conversacion_id = c.id
-                ORDER BY fecha_envio DESC
-                LIMIT 1
-            )
-            WHERE p.usuario_id = ?
-            ORDER BY m.fecha_envio DESC
+                m.contenido_cifrado AS ultimo_mensaje,
+                m.fecha_envio,
+                u_otro.id AS participante_id,
+                u_otro.nombre_usuario AS nombre_participante,
+                per_otro.nombre_completo AS nombre_completo_participante
+            FROM participantes p_actual
+            JOIN conversaciones c 
+                ON c.id = p_actual.conversacion_id
+
+            LEFT JOIN participantes part_otro
+                ON part_otro.conversacion_id = c.id
+                AND part_otro.usuario_id != p_actual.usuario_id
+                AND c.es_grupo = 0
+
+            LEFT JOIN usuario u_otro
+                ON u_otro.id = part_otro.usuario_id
+
+            LEFT JOIN personas per_otro
+                ON per_otro.id = u_otro.persona_id
+
+            LEFT JOIN mensajes m
+                ON m.id = (
+                    SELECT m2.id
+                    FROM mensajes m2
+                    WHERE m2.conversacion_id = c.id
+                    ORDER BY m2.fecha_envio DESC
+                    LIMIT 1
+                )
+
+            WHERE p_actual.usuario_id = ?
+            ORDER BY 
+                CASE WHEN m.fecha_envio IS NULL THEN 1 ELSE 0 END,
+                m.fecha_envio DESC,
+                c.fecha_creacion DESC
         ";
 
         return $this->db->query($sql, [$usuario_id])->result();
     }
-
-    public function obtener_mensajes($conversacion_id)
-{
-    $sql = "
-        SELECT 
-            m.id as mensaje_id,
-            m.conversacion_id,
-            m.remitente_id,
-            u.nombre_usuario,
-            p.nombre_completo,
-            m.tipo,
-            m.contenido_cifrado,
-            m.iv,
-            m.fecha_envio,
-
-            a.id as archivo_id,
-            a.nombre_original,
-            a.tipo_mime,
-            a.tamano_bytes,
-            a.storage_key,
-            a.miniatura_url
-
-        FROM mensajes m
-
-        JOIN usuario u ON u.id = m.remitente_id
-        JOIN personas p ON p.id = u.persona_id
-
-        LEFT JOIN archivos a ON a.mensaje_id = m.id
-
-        WHERE m.conversacion_id = ?
-
-        ORDER BY m.fecha_envio ASC
-    ";
-
-    return $this->db->query($sql, [$conversacion_id])->result();
-}
 }

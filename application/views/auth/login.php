@@ -57,12 +57,11 @@
 </div>
 
 <script>
-$(document).ready(function() {
-    // Toggle password visibility
+document.addEventListener("DOMContentLoaded", function() {
     $('#togglePassword').click(function() {
         const password = $('#password');
         const icon = $(this).find('i');
-        
+
         if (password.attr('type') === 'password') {
             password.attr('type', 'text');
             icon.removeClass('bi-eye').addClass('bi-eye-slash');
@@ -72,19 +71,17 @@ $(document).ready(function() {
         }
     });
 
-    // Login form submission
     $('#loginForm').submit(function(e) {
         e.preventDefault();
-        
-        const usuario = $('#usuario').val();
-        const password = $('#password').val();
-        
+
+        const usuario = $('#usuario').val().trim();
+        const password = $('#password').val().trim();
+
         if (!usuario || !password) {
             Swal.fire('Error', 'Por favor completa todos los campos', 'error');
             return;
         }
 
-        // Show loading
         $('#spinner').removeClass('d-none');
         $('#btnText').text('Iniciando sesión...');
         $('#btnLogin').prop('disabled', true);
@@ -93,6 +90,7 @@ $(document).ready(function() {
             url: 'http://localhost/mensajeria/api/auth/login',
             type: 'POST',
             contentType: 'application/json',
+            dataType: 'json',
             data: JSON.stringify({
                 usuario: usuario,
                 password: password
@@ -101,21 +99,23 @@ $(document).ready(function() {
                 if (response.success) {
                     localStorage.setItem('usuario_id', response.usuario_id);
                     localStorage.setItem('nombre_usuario', response.nombre_usuario);
-                    
+
                     if (response.password_temporal) {
-                        window.location.href = '/mensajeria/auth/cambiar-password';
+                        window.location.href = '/mensajeria/auth/cambiar_password';
                     } else {
                         window.location.href = '/mensajeria/mensajeria';
                     }
                 } else {
-                    Swal.fire('Error', response.message || 'Credenciales incorrectas', 'error');
+                    Swal.fire('Error', response.error || 'Credenciales incorrectas', 'error');
                 }
             },
             error: function(xhr) {
                 let errorMsg = 'Error al conectar con el servidor';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg = xhr.responseJSON.message;
+
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
                 }
+
                 Swal.fire('Error', errorMsg, 'error');
             },
             complete: function() {
@@ -125,15 +125,6 @@ $(document).ready(function() {
             }
         });
     });
-});
-
-// SweetAlert2
-const Swal = swal.mixin({
-    customClass: {
-        confirmButton: 'btn btn-primary',
-        cancelButton: 'btn btn-secondary'
-    },
-    buttonsStyling: false
 });
 </script>
 

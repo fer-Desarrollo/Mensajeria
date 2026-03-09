@@ -29,7 +29,7 @@ class Mensajes extends CI_Controller {
         if (!empty($_FILES['archivo']['name'])) {
 
             $config['upload_path'] = './uploads/';
-            $config['allowed_types'] = '*';
+            $config['allowed_types'] = 'jpg|jpeg|png|gif|webp';
             $config['encrypt_name'] = TRUE;
 
             $this->upload->initialize($config);

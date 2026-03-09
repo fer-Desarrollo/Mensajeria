@@ -16,8 +16,17 @@
                             <label class="form-label fw-semibold">Nombre completo</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white"><i class="bi bi-person-badge"></i></span>
-                                <input type="text" class="form-control" id="nombre_completo" 
+                                <input type="text" class="form-control" id="nombre_completo"
                                        placeholder="Ej: Juan Pérez García" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-semibold">Nombre de usuario</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-at"></i></span>
+                                <input type="text" class="form-control" id="nombre_usuario"
+                                       placeholder="Ej: juanperez" required>
                             </div>
                         </div>
 
@@ -25,7 +34,7 @@
                             <label class="form-label fw-semibold">Email</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white"><i class="bi bi-envelope"></i></span>
-                                <input type="email" class="form-control" id="email" 
+                                <input type="email" class="form-control" id="email"
                                        placeholder="correo@ejemplo.com" required>
                             </div>
                         </div>
@@ -34,7 +43,7 @@
                             <label class="form-label fw-semibold">Teléfono</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white"><i class="bi bi-telephone"></i></span>
-                                <input type="tel" class="form-control" id="telefono" 
+                                <input type="tel" class="form-control" id="telefono"
                                        placeholder="1234567890" required>
                             </div>
                         </div>
@@ -59,14 +68,32 @@
 
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-semibold">País</label>
-                            <input type="text" class="form-control" id="pais" 
+                            <input type="text" class="form-control" id="pais"
                                    placeholder="Ej: México" required>
                         </div>
 
                         <div class="col-md-12 mb-3">
                             <label class="form-label fw-semibold">Ciudad</label>
-                            <input type="text" class="form-control" id="ciudad" 
+                            <input type="text" class="form-control" id="ciudad"
                                    placeholder="Ej: CDMX" required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                                <input type="password" class="form-control" id="password"
+                                       placeholder="********" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Confirmar contraseña</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-shield-lock"></i></span>
+                                <input type="password" class="form-control" id="confirm_password"
+                                       placeholder="********" required>
+                            </div>
                         </div>
                     </div>
 
@@ -85,23 +112,36 @@
 </div>
 
 <script>
-$(document).ready(function() {
+document.addEventListener("DOMContentLoaded", function() {
     $('#registroForm').submit(function(e) {
         e.preventDefault();
-        
+
         const formData = {
-            nombre_completo: $('#nombre_completo').val(),
-            email: $('#email').val(),
-            telefono: $('#telefono').val(),
+            nombre_completo: $('#nombre_completo').val().trim(),
+            nombre_usuario: $('#nombre_usuario').val().trim(),
+            email: $('#email').val().trim(),
+            telefono: $('#telefono').val().trim(),
             fecha_nacimiento: $('#fecha_nacimiento').val(),
             genero: $('#genero').val(),
-            pais: $('#pais').val(),
-            ciudad: $('#ciudad').val()
+            pais: $('#pais').val().trim(),
+            ciudad: $('#ciudad').val().trim(),
+            password: $('#password').val(),
+            confirm_password: $('#confirm_password').val()
         };
 
-        // Validaciones básicas
-        if (!formData.nombre_completo || !formData.email || !formData.telefono) {
-            Swal.fire('Error', 'Por favor completa todos los campos requeridos', 'error');
+        if (
+            !formData.nombre_completo ||
+            !formData.nombre_usuario ||
+            !formData.email ||
+            !formData.telefono ||
+            !formData.fecha_nacimiento ||
+            !formData.genero ||
+            !formData.pais ||
+            !formData.ciudad ||
+            !formData.password ||
+            !formData.confirm_password
+        ) {
+            Swal.fire('Error', 'Por favor completa todos los campos', 'error');
             return;
         }
 
@@ -110,7 +150,16 @@ $(document).ready(function() {
             return;
         }
 
-        // Show loading
+        if (formData.password.length < 6) {
+            Swal.fire('Error', 'La contraseña debe tener al menos 6 caracteres', 'error');
+            return;
+        }
+
+        if (formData.password !== formData.confirm_password) {
+            Swal.fire('Error', 'Las contraseñas no coinciden', 'error');
+            return;
+        }
+
         $('#spinner').removeClass('d-none');
         $('#btnText').text('Registrando...');
         $('#btnRegistro').prop('disabled', true);
@@ -119,22 +168,34 @@ $(document).ready(function() {
             url: 'http://localhost/mensajeria/api/auth/registro',
             type: 'POST',
             contentType: 'application/json',
+            dataType: 'json',
             data: JSON.stringify(formData),
             success: function(response) {
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Registro exitoso!',
-                    text: 'Tu cuenta ha sido creada correctamente. Por favor inicia sesión.',
-                    confirmButtonText: 'Ir a login'
-                }).then((result) => {
-                    window.location.href = '/mensajeria/auth/login';
-                });
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Registro exitoso!',
+                        html: `
+                            <p>Tu cuenta fue creada correctamente.</p>
+                            <p><strong>Usuario:</strong> ${response.usuario_generado}</p>
+                            <p><strong>Contraseña temporal:</strong> ${response.password_temporal}</p>
+                            <p>Guárdalos para iniciar sesión.</p>
+                        `,
+                        confirmButtonText: 'Ir a login'
+                    }).then(() => {
+                        window.location.href = '/mensajeria/auth/login';
+                    });
+                } else {
+                    Swal.fire('Error', response.error || 'No se pudo registrar el usuario', 'error');
+                }
             },
             error: function(xhr) {
                 let errorMsg = 'Error al registrar usuario';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg = xhr.responseJSON.message;
+
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
                 }
+
                 Swal.fire('Error', errorMsg, 'error');
             },
             complete: function() {

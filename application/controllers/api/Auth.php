@@ -3,10 +3,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Auth extends CI_Controller {
 
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
         $this->load->model('Auth_model');
-        $this->load->library(['email']);
+        $this->load->library('session');
         $this->output->set_content_type('application/json');
     }
 
@@ -18,7 +19,11 @@ class Auth extends CI_Controller {
             return $this->error('JSON inválido', 400);
         }
 
-        if (empty($input['nombre_completo']) || empty($input['email']) || empty($input['telefono'])) {
+        if (
+            empty($input['nombre_completo']) ||
+            empty($input['email']) ||
+            empty($input['telefono'])
+        ) {
             return $this->error('Campos requeridos faltantes', 400);
         }
 
@@ -31,49 +36,66 @@ class Auth extends CI_Controller {
         }
 
         $nombre_usuario = !empty($input['nombre_usuario'])
-            ? $input['nombre_usuario']
-            : strtolower(str_replace(' ', '', $input['nombre_completo'])) . rand(100,999);
+            ? trim($input['nombre_usuario'])
+            : strtolower(str_replace(' ', '', $input['nombre_completo'])) . rand(100, 999);
 
         $password = substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$'), 0, 10);
 
-        $resultado = $this->Auth_model->crear_usuario(
-            $input,
-            $nombre_usuario,
-            $password
-        );
+        $resultado = $this->Auth_model->crear_usuario($input, $nombre_usuario, $password);
 
         if (!$resultado['success']) {
             return $this->error($resultado['error'], 500);
-        }
-
-        $this->email->from('daysgone8336@gmail.com', 'Mensajeria App');
-        $this->email->to($input['email']);
-        $this->email->subject('Credenciales de acceso');
-
-        $this->email->message("
-            <h3>Bienvenido {$input['nombre_completo']}</h3>
-            <p><b>Usuario:</b> {$nombre_usuario}</p>
-            <p><b>Contraseña temporal:</b> {$password}</p>
-            <p>Debes cambiarla al iniciar sesión.</p>
-        ");
-
-        if (!$this->email->send()) {
-            return $this->error('Usuario creado pero email no enviado', 500);
         }
 
         return $this->output
             ->set_status_header(201)
             ->set_output(json_encode([
                 'success' => true,
-                'message' => 'Usuario creado y correo enviado'
+                'message' => 'Usuario creado correctamente',
+                'usuario_generado' => $nombre_usuario,
+                'password_temporal' => $password
             ]));
     }
 
-    private function error($mensaje, $code)
+    public function login()
     {
+        $input = json_decode($this->input->raw_input_stream, true);
+
+        if (!$input) {
+            return $this->error('JSON inválido', 400);
+        }
+
+        if (empty($input['usuario']) || empty($input['password'])) {
+            return $this->error('Datos incompletos', 400);
+        }
+
+        $resultado = $this->Auth_model->login(
+            trim($input['usuario']),
+            trim($input['password'])
+        );
+
+        if (!$resultado['success']) {
+            return $this->error($resultado['error'], 401);
+        }
+
+        $user = $resultado['user'];
+
+        $this->session->set_userdata([
+            'usuario_id' => $user->id,
+            'nombre_usuario' => $user->nombre_usuario
+        ]);
+
         return $this->output
-            ->set_status_header($code)
-            ->set_output(json_encode(['error' => $mensaje]));
+            ->set_status_header(200)
+            ->set_output(json_encode([
+                'success' => true,
+                'usuario_id' => $user->id,
+                'nombre_usuario' => $user->nombre_usuario,
+                'password_temporal' => (bool)$user->password_temporal,
+                'message' => $user->password_temporal
+                    ? 'Debe cambiar su contraseña temporal'
+                    : 'Login exitoso'
+            ]));
     }
 
     public function cambiar_password()
@@ -110,43 +132,6 @@ class Auth extends CI_Controller {
             ]));
     }
 
-    public function login()
-    {
-        $input = json_decode($this->input->raw_input_stream, true);
-
-        if (!$input) {
-            return $this->error('JSON inválido', 400);
-        }
-
-        if (empty($input['usuario']) || empty($input['password'])) {
-            return $this->error('Datos incompletos', 400);
-        }
-
-        $resultado = $this->Auth_model->login(
-            $input['usuario'],
-            $input['password']
-        );
-
-        if (!$resultado['success']) {
-            return $this->error($resultado['error'], 401);
-        }
-
-        $user = $resultado['user'];
-
-        return $this->output
-            ->set_status_header(200)
-            ->set_output(json_encode([
-                'success' => true,
-                'usuario_id' => $user->id,
-                'nombre_usuario' => $user->nombre_usuario,
-                'password_temporal' => (bool)$user->password_temporal,
-                'message' => $user->password_temporal 
-                    ? 'Debe cambiar su contraseña temporal'
-                    : 'Login exitoso'
-            ]));
-    }
-
-
     public function olvide_password()
     {
         $input = json_decode($this->input->raw_input_stream, true);
@@ -161,27 +146,23 @@ class Auth extends CI_Controller {
             return $this->error($resultado['error'], 404);
         }
 
-        // enviar correo
-        $this->email->from('noreply@tuapp.com', 'Mensajeria App');
-        $this->email->to($resultado['email']);
-        $this->email->subject('Recuperación de contraseña');
-
-        $this->email->message("
-            <h3>Recuperación de acceso</h3>
-            <p><b>Usuario:</b> {$resultado['usuario']}</p>
-            <p><b>Nueva contraseña temporal:</b> {$resultado['password_temporal']}</p>
-            <p>Debes cambiarla al iniciar sesión.</p>
-        ");
-
-        if (!$this->email->send()) {
-            return $this->error('No se pudo enviar el correo', 500);
-        }
-
         return $this->output
             ->set_status_header(200)
             ->set_output(json_encode([
                 'success' => true,
-                'message' => 'Se envió una nueva contraseña temporal al correo'
+                'message' => 'Contraseña temporal generada correctamente',
+                'usuario' => $resultado['usuario'],
+                'password_temporal' => $resultado['password_temporal']
             ]));
     }
-} 
+
+    private function error($mensaje, $code)
+    {
+        return $this->output
+            ->set_status_header($code)
+            ->set_output(json_encode([
+                'success' => false,
+                'error' => $mensaje
+            ]));
+    }
+}

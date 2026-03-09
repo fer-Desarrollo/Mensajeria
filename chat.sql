@@ -1,154 +1,123 @@
-create database messenger;
-use messenger;
+CREATE DATABASE messenger;
+USE messenger
 
-CREATE TABLE personas (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  nombres VARCHAR(120) NOT NULL,
-  apellidos VARCHAR(120) NOT NULL,
-  telefono VARCHAR(30) NULL,
-  fecha_nacimiento DATE NULL,
-  foto_perfil_url TEXT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uk_personas_telefono (telefono)
-) ENGINE=InnoDB;
-
-CREATE TABLE usuarios (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  persona_id BIGINT UNSIGNED NOT NULL,
-  username VARCHAR(60) NOT NULL,
-  email VARCHAR(160) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  estado ENUM('activo','bloqueado') NOT NULL DEFAULT 'activo',
-  ultimo_login DATETIME NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uk_usuarios_persona_id (persona_id),
-  UNIQUE KEY uk_usuarios_username (username),
-  UNIQUE KEY uk_usuarios_email (email),
-  CONSTRAINT fk_usuarios_personas
-    FOREIGN KEY (persona_id) REFERENCES personas(id)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE conversaciones (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  tipo ENUM('directa','grupo') NOT NULL,
-  nombre VARCHAR(120) NULL,
-  created_by_usuario_id BIGINT UNSIGNED NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_conversaciones_tipo (tipo),
-  KEY idx_conversaciones_creador (created_by_usuario_id),
-  CONSTRAINT fk_conversaciones_creador
-    FOREIGN KEY (created_by_usuario_id) REFERENCES usuarios(id)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE conversacion_participantes (
-  conversacion_id BIGINT UNSIGNED NOT NULL,
-  usuario_id BIGINT UNSIGNED NOT NULL,
-  rol ENUM('admin','miembro') NOT NULL DEFAULT 'miembro',
-  joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (conversacion_id, usuario_id),
-  KEY idx_cp_usuario (usuario_id),
-  KEY idx_cp_conversacion (conversacion_id),
-  CONSTRAINT fk_cp_conversacion
-    FOREIGN KEY (conversacion_id) REFERENCES conversaciones(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT fk_cp_usuario
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE mensajes (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  conversacion_id BIGINT UNSIGNED NOT NULL,
-  remitente_usuario_id BIGINT UNSIGNED NOT NULL,
-  texto TEXT NULL,
-  reply_to_mensaje_id BIGINT UNSIGNED NULL,
-  estado ENUM('enviado','entregado','leido','eliminado') NOT NULL DEFAULT 'enviado',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_mensajes_conversacion_fecha (conversacion_id, created_at),
-  KEY idx_mensajes_remitente_fecha (remitente_usuario_id, created_at),
-  KEY idx_mensajes_reply (reply_to_mensaje_id),
-  CONSTRAINT fk_mensajes_conversacion
-    FOREIGN KEY (conversacion_id) REFERENCES conversaciones(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT fk_mensajes_remitente
-    FOREIGN KEY (remitente_usuario_id) REFERENCES usuarios(id)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE,
-  CONSTRAINT fk_mensajes_reply
-    FOREIGN KEY (reply_to_mensaje_id) REFERENCES mensajes(id)
-    ON DELETE SET NULL
-    ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE mensaje_adjuntos (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  mensaje_id BIGINT UNSIGNED NOT NULL,
-  tipo ENUM('imagen','audio','video') NOT NULL,
-  url TEXT NOT NULL,
-  mime_type VARCHAR(100) NULL,
-  size_bytes BIGINT UNSIGNED NULL,
-  -- solo para audio/video
-  duracion_segundos INT UNSIGNED NULL,
-  -- solo para imagen/video
-  ancho INT UNSIGNED NULL,
-  alto  INT UNSIGNED NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_adjuntos_mensaje (mensaje_id),
-  KEY idx_adjuntos_tipo (tipo),
-  CONSTRAINT fk_adjuntos_mensaje
-    FOREIGN KEY (mensaje_id) REFERENCES mensajes(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE mensaje_estados (
-  mensaje_id BIGINT UNSIGNED NOT NULL,
-  usuario_id BIGINT UNSIGNED NOT NULL,
-  entregado_at DATETIME NULL,
-  leido_at DATETIME NULL,
-  PRIMARY KEY (mensaje_id, usuario_id),
-  KEY idx_me_usuario (usuario_id),
-  KEY idx_me_leido (usuario_id, leido_at),
-  CONSTRAINT fk_me_mensaje
-    FOREIGN KEY (mensaje_id) REFERENCES mensajes(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT fk_me_usuario
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE OR REPLACE VIEW vw_conversaciones_ultimo_mensaje AS
-SELECT
-  c.id AS conversacion_id,
-  c.tipo,
-  c.nombre,
-  c.created_at AS conversacion_creada,
-  m.id AS ultimo_mensaje_id,
-  m.created_at AS ultimo_mensaje_fecha,
-  m.texto AS ultimo_mensaje_texto,
-  m.remitente_usuario_id
-FROM conversaciones c
-LEFT JOIN mensajes m
-  ON m.id = (
-    SELECT m2.id
-    FROM mensajes m2
-    WHERE m2.conversacion_id = c.id
-    ORDER BY m2.created_at DESC, m2.id DESC
-    LIMIT 1
-  );
+CREATE TABLE `archivos` (
+   `id` char(36) NOT NULL,
+   `mensaje_id` char(36) NOT NULL,
+   `nombre_original` varchar(255) NOT NULL,
+   `tipo_mime` varchar(100) NOT NULL,
+   `tamano_bytes` bigint(20) NOT NULL,
+   `storage_key` text NOT NULL,
+   `clave_cifrado` text NOT NULL,
+   `iv_archivo` varchar(32) NOT NULL,
+   `miniatura_url` text DEFAULT NULL,
+   `fecha_subida` timestamp NOT NULL DEFAULT current_timestamp(),
+   PRIMARY KEY (`id`),
+   KEY `idx_archivos_mensaje` (`mensaje_id`),
+   CONSTRAINT `archivos_ibfk_1` FOREIGN KEY (`mensaje_id`) REFERENCES `mensajes` (`id`) ON DELETE CASCADE
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ 
+ CREATE TABLE `confirmaciones` (
+   `mensaje_id` char(36) NOT NULL,
+   `usuario_id` char(36) NOT NULL,
+   `tipo` varchar(10) NOT NULL,
+   `fecha` timestamp NOT NULL DEFAULT current_timestamp(),
+   PRIMARY KEY (`mensaje_id`,`usuario_id`,`tipo`),
+   KEY `usuario_id` (`usuario_id`),
+   KEY `idx_confirmaciones_mensaje` (`mensaje_id`),
+   CONSTRAINT `confirmaciones_ibfk_1` FOREIGN KEY (`mensaje_id`) REFERENCES `mensajes` (`id`) ON DELETE CASCADE,
+   CONSTRAINT `confirmaciones_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE CASCADE
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ 
+ CREATE TABLE `contactos` (
+   `usuario_id` char(36) NOT NULL,
+   `contacto_id` char(36) NOT NULL,
+   `nombre_guardado` varchar(100) DEFAULT NULL,
+   `bloqueado` tinyint(1) DEFAULT 0,
+   `fecha_agregado` timestamp NOT NULL DEFAULT current_timestamp(),
+   PRIMARY KEY (`usuario_id`,`contacto_id`),
+   KEY `fk_contacto_contacto` (`contacto_id`),
+   KEY `idx_contactos_usuario` (`usuario_id`),
+   CONSTRAINT `fk_contacto_contacto` FOREIGN KEY (`contacto_id`) REFERENCES `usuario` (`id`) ON DELETE CASCADE,
+   CONSTRAINT `fk_contacto_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE CASCADE
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ 
+ CREATE TABLE `conversaciones` (
+   `id` char(36) NOT NULL,
+   `es_grupo` tinyint(1) DEFAULT 0,
+   `nombre_grupo` varchar(100) DEFAULT NULL,
+   `foto_grupo_url` text DEFAULT NULL,
+   `creador_id` char(36) DEFAULT NULL,
+   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+   PRIMARY KEY (`id`),
+   KEY `fk_conversacion_creador` (`creador_id`),
+   CONSTRAINT `fk_conversacion_creador` FOREIGN KEY (`creador_id`) REFERENCES `usuario` (`id`) ON DELETE SET NULL
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ 
+ CREATE TABLE `mensajes` (
+   `id` char(36) NOT NULL,
+   `conversacion_id` char(36) NOT NULL,
+   `remitente_id` char(36) DEFAULT NULL,
+   `tipo` varchar(20) DEFAULT 'texto',
+   `contenido_cifrado` text NOT NULL,
+   `iv` varchar(32) NOT NULL,
+   `responde_a` char(36) DEFAULT NULL,
+   `eliminado` tinyint(1) DEFAULT 0,
+   `fecha_envio` timestamp NOT NULL DEFAULT current_timestamp(),
+   PRIMARY KEY (`id`),
+   KEY `remitente_id` (`remitente_id`),
+   KEY `responde_a` (`responde_a`),
+   KEY `idx_mensajes_conversacion` (`conversacion_id`,`fecha_envio`),
+   CONSTRAINT `mensajes_ibfk_1` FOREIGN KEY (`conversacion_id`) REFERENCES `conversaciones` (`id`) ON DELETE CASCADE,
+   CONSTRAINT `mensajes_ibfk_2` FOREIGN KEY (`remitente_id`) REFERENCES `usuario` (`id`) ON DELETE SET NULL,
+   CONSTRAINT `mensajes_ibfk_3` FOREIGN KEY (`responde_a`) REFERENCES `mensajes` (`id`) ON DELETE SET NULL
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ 
+ CREATE TABLE `participantes` (
+   `conversacion_id` char(36) NOT NULL,
+   `usuario_id` char(36) NOT NULL,
+   `es_admin` tinyint(1) DEFAULT 0,
+   `ultima_lectura` timestamp NULL DEFAULT NULL,
+   `fecha_union` timestamp NOT NULL DEFAULT current_timestamp(),
+   PRIMARY KEY (`conversacion_id`,`usuario_id`),
+   KEY `idx_participantes_usuario` (`usuario_id`),
+   CONSTRAINT `participantes_ibfk_1` FOREIGN KEY (`conversacion_id`) REFERENCES `conversaciones` (`id`) ON DELETE CASCADE,
+   CONSTRAINT `participantes_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE CASCADE
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ 
+ CREATE TABLE `personas` (
+   `id` char(36) NOT NULL,
+   `nombre_completo` varchar(100) NOT NULL,
+   `foto_url` text DEFAULT NULL,
+   `fecha_nacimiento` date DEFAULT NULL,
+   `genero` varchar(20) DEFAULT NULL,
+   `pais` varchar(60) DEFAULT NULL,
+   `ciudad` varchar(60) DEFAULT NULL,
+   `about` varchar(139) DEFAULT 'Usando la app',
+   `fecha_registro` timestamp NOT NULL DEFAULT current_timestamp(),
+   PRIMARY KEY (`id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ 
+ CREATE TABLE `usuario` (
+   `id` char(36) NOT NULL,
+   `persona_id` char(36) NOT NULL,
+   `nombre_usuario` varchar(50) NOT NULL,
+   `email` varchar(150) DEFAULT NULL,
+   `telefono` varchar(20) NOT NULL,
+   `contrasena_hash` text NOT NULL,
+   `llave_publica` text NOT NULL,
+   `llave_privada_cifrada` text NOT NULL,
+   `en_linea` tinyint(1) DEFAULT 0,
+   `ultima_conexion` timestamp NULL DEFAULT NULL,
+   `activo` tinyint(1) DEFAULT 1,
+   `fecha_registro` timestamp NOT NULL DEFAULT current_timestamp(),
+   `password_temporal` tinyint(1) DEFAULT 1,
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `persona_id` (`persona_id`),
+   UNIQUE KEY `nombre_usuario` (`nombre_usuario`),
+   UNIQUE KEY `telefono` (`telefono`),
+   UNIQUE KEY `email` (`email`),
+   KEY `idx_usuario_telefono` (`telefono`),
+   KEY `idx_usuario_nombre` (`nombre_usuario`),
+   CONSTRAINT `fk_usuario_persona` FOREIGN KEY (`persona_id`) REFERENCES `personas` (`id`) ON DELETE CASCADE
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
